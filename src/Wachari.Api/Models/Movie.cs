@@ -1,6 +1,6 @@
 namespace Wachari.Api.Models;
 
-public class Movie
+public class Movie : MediaItem
 {
-    
+    public int RuntimeMinutes { get; set; }
 }

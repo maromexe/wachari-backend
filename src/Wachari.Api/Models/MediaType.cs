@@ -1,6 +1,7 @@
 namespace Wachari.Api.Models;
 
-public class MediaType
+public enum MediaType
 {
-    
+    Movie,
+    TvShow
 }
