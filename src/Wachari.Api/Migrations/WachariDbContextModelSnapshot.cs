@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Wachari.Api.Data;
 
@@ -15,44 +16,55 @@ namespace Wachari.Api.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.22")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("Wachari.Api.Models.MediaItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.PrimitiveCollection<string>("Genres")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Overview")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("PosterUrl")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
-                    b.Property<double>("Rating")
-                        .HasColumnType("REAL");
+                    b.Property<decimal>("Rating")
+                        .HasPrecision(3, 1)
+                        .HasColumnType("decimal(3,1)");
 
                     b.Property<DateOnly>("ReleaseDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("date");
 
                     b.Property<string>("Tagline")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(13)
-                        .HasColumnType("TEXT");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
 
@@ -68,7 +80,7 @@ namespace Wachari.Api.Migrations
                     b.HasBaseType("Wachari.Api.Models.MediaItem");
 
                     b.Property<int>("RuntimeMinutes")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.HasDiscriminator().HasValue("movie");
                 });
@@ -78,10 +90,10 @@ namespace Wachari.Api.Migrations
                     b.HasBaseType("Wachari.Api.Models.MediaItem");
 
                     b.Property<int>("NumberOfEpisodes")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("NumberOfSeasons")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.HasDiscriminator().HasValue("tvShow");
                 });

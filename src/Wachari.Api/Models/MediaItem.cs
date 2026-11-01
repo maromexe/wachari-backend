@@ -11,7 +11,7 @@ public abstract class MediaItem
     public string Title { get; set; } = string.Empty;
     public string Tagline { get; set; } = string.Empty;
     public string Overview { get; set; } = string.Empty;
-    public double Rating { get; set; }
+    public decimal Rating { get; set; }
     public DateOnly ReleaseDate { get; set; }
     public List<string> Genres { get; set; } = [];
     public string PosterUrl { get; set; } = string.Empty;

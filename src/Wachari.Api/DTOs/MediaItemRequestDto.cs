@@ -15,8 +15,8 @@ public abstract class MediaItemRequestDto
     public string Overview { get; set; } = string.Empty;
 
     [Required]
-    [Range(0, 10)]
-    public double? Rating { get; set; }
+    [Range(typeof(decimal), "0", "10")]
+    public decimal? Rating { get; set; }
 
     [Required]
     public DateOnly? ReleaseDate { get; set; }
