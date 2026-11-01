@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Wachari.Api.Data;
+using Wachari.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddDbContext<WachariDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

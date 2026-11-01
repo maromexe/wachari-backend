@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Wachari.Api.Data;
 using Wachari.Api.Dtos;
 using Wachari.Api.Models;
+using Wachari.Api.Services;
 
 namespace Wachari.Api.Controllers;
 
@@ -10,34 +9,27 @@ namespace Wachari.Api.Controllers;
 [Route("api/[controller]")]
 public class MediaController : ControllerBase
 {
-    private readonly WachariDbContext _db;
+    private readonly IMediaService _mediaService;
 
-    public MediaController(WachariDbContext db)
+    public MediaController(IMediaService mediaService)
     {
-        _db = db;
+        _mediaService = mediaService;
     }
 
-    // GET /api/media?type=movie
+    // GET /api/media
+    // GET /api/media?type=movie|tvShow
     [HttpGet]
-    public async Task<ActionResult<List<MediaItem>>> GetAll([FromQuery] MediaType? type)
+    public async Task<ActionResult<List<MediaItemResponseDto>>> GetAll(
+        [FromQuery] MediaType? type, CancellationToken ct)
     {
-        IQueryable<MediaItem> query = type switch
-        {
-            MediaType.Movie => _db.MediaItems.OfType<Movie>(),
-            MediaType.TvShow => _db.MediaItems.OfType<TvShow>(),
-            _ => _db.MediaItems
-        };
-
-        return await query.AsNoTracking().ToListAsync();
+        return await _mediaService.GetAllAsync(type, ct);
     }
 
     // GET /api/media/1
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<MediaItem>> GetById(int id)
+    public async Task<ActionResult<MediaItemResponseDto>> GetById(int id, CancellationToken ct)
     {
-        var item = await _db.MediaItems
-            .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Id == id);
+        var item = await _mediaService.GetByIdAsync(id, ct);
 
         if (item is null)
         {
@@ -49,107 +41,48 @@ public class MediaController : ControllerBase
 
     // POST /api/media/movies
     [HttpPost("movies")]
-    public async Task<ActionResult<MediaItem>> CreateMovie(MovieRequestDto dto)
+    public async Task<ActionResult<MediaItemResponseDto>> CreateMovie(
+        MovieRequestDto dto, CancellationToken ct)
     {
-        var movie = new Movie();
-        ApplyMovieFields(dto, movie);
+        var created = await _mediaService.CreateMovieAsync(dto, ct);
 
-        _db.MediaItems.Add(movie);
-        await _db.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = movie.Id }, movie);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     // POST /api/media/tv-shows
     [HttpPost("tv-shows")]
-    public async Task<ActionResult<MediaItem>> CreateTvShow(TvShowRequestDto dto)
+    public async Task<ActionResult<MediaItemResponseDto>> CreateTvShow(
+        TvShowRequestDto dto, CancellationToken ct)
     {
-        var tvShow = new TvShow();
-        ApplyTvShowFields(dto, tvShow);
+        var created = await _mediaService.CreateTvShowAsync(dto, ct);
 
-        _db.MediaItems.Add(tvShow);
-        await _db.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = tvShow.Id }, tvShow);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     // PUT /api/media/movies/1
     [HttpPut("movies/{id:int}")]
-    public async Task<IActionResult> UpdateMovie(int id, MovieRequestDto dto)
+    public async Task<IActionResult> UpdateMovie(int id, MovieRequestDto dto, CancellationToken ct)
     {
-        var movie = await _db.MediaItems
-            .OfType<Movie>()
-            .FirstOrDefaultAsync(m => m.Id == id);
+        var updated = await _mediaService.UpdateMovieAsync(id, dto, ct);
 
-        if (movie is null)
-        {
-            return NotFound();
-        }
-
-        ApplyMovieFields(dto, movie);
-        await _db.SaveChangesAsync();
-
-        return NoContent();
+        return updated ? NoContent() : NotFound();
     }
 
     // PUT /api/media/tv-shows/3
     [HttpPut("tv-shows/{id:int}")]
-    public async Task<IActionResult> UpdateTvShow(int id, TvShowRequestDto dto)
+    public async Task<IActionResult> UpdateTvShow(int id, TvShowRequestDto dto, CancellationToken ct)
     {
-        var tvShow = await _db.MediaItems
-            .OfType<TvShow>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+        var updated = await _mediaService.UpdateTvShowAsync(id, dto, ct);
 
-        if (tvShow is null)
-        {
-            return NotFound();
-        }
-
-        ApplyTvShowFields(dto, tvShow);
-        await _db.SaveChangesAsync();
-
-        return NoContent();
+        return updated ? NoContent() : NotFound();
     }
 
     // DELETE /api/media/1
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        var item = await _db.MediaItems.FindAsync(id);
+        var deleted = await _mediaService.DeleteAsync(id, ct);
 
-        if (item is null)
-        {
-            return NotFound();
-        }
-
-        _db.MediaItems.Remove(item);
-        await _db.SaveChangesAsync();
-
-        return NoContent();
-    }
-
-    // Mapping: copy data from DTOs to entities
-    private static void ApplyMovieFields(MovieRequestDto dto, Movie movie)
-    {
-        ApplyCommonFields(dto, movie);
-        movie.RuntimeMinutes = dto.RuntimeMinutes!.Value;
-    }
-
-    private static void ApplyTvShowFields(TvShowRequestDto dto, TvShow tvShow)
-    {
-        ApplyCommonFields(dto, tvShow);
-        tvShow.NumberOfSeasons = dto.NumberOfSeasons!.Value;
-        tvShow.NumberOfEpisodes = dto.NumberOfEpisodes!.Value;
-    }
-
-    private static void ApplyCommonFields(MediaItemRequestDto dto, MediaItem item)
-    {
-        item.Title = dto.Title;
-        item.Tagline = dto.Tagline;
-        item.Overview = dto.Overview;
-        item.Rating = dto.Rating!.Value;
-        item.ReleaseDate = dto.ReleaseDate!.Value;
-        item.Genres = dto.Genres;
-        item.PosterUrl = dto.PosterUrl;
+        return deleted ? NoContent() : NotFound();
     }
 }

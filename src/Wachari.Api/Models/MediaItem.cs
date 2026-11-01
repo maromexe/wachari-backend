@@ -1,10 +1,5 @@
-using System.Text.Json.Serialization;
-
 namespace Wachari.Api.Models;
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(Movie), "movie")]
-[JsonDerivedType(typeof(TvShow), "tvShow")]
 public abstract class MediaItem
 {
     public int Id { get; set; }
