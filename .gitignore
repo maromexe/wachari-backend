@@ -490,3 +490,12 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# AI assistant files (local only, never committed)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+.cursor/
+.cursorrules
+.github/copilot-instructions.md

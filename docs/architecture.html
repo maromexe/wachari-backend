@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wachari — архітектура бекенду</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1320;
+    --surface: #171c2c;
+    --surface-2: #1e2438;
+    --line: #2c3350;
+    --text: #e6e8ef;
+    --muted: #8f95ab;
+    --accent: #8b7ff6;
+    --get: #4cc38a;
+    --post: #5b9cf5;
+    --put: #e0a43c;
+    --delete: #e5604f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Poppins", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--muted); max-width: 760px; }
+  code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.86em; }
+  code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 0; }
+  nav.toc a {
+    color: var(--text); text-decoration: none; font-size: 0.85rem;
+    background: var(--surface); border: 1px solid var(--line);
+    padding: 4px 12px; border-radius: 999px;
+  }
+  nav.toc a:hover { border-color: var(--accent); }
+  figure {
+    margin: 16px 0 0; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 20px;
+  }
+  figure svg { display: block; width: 100%; height: auto; color: var(--text); }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 12px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 20px;
+  }
+  .card h3 { margin-top: 0; }
+  .card ul, .card ol { margin: 0; padding-left: 20px; }
+  pre {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; overflow-x: auto; margin: 12px 0 0;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.82rem; line-height: 1.55;
+  }
+  pre .c { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  .table-wrap {
+    overflow-x: auto; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; margin-top: 12px;
+  }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+  td.path { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.82rem; white-space: nowrap; }
+  .m {
+    display: inline-block; min-width: 58px; text-align: center; font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; color: #0f1320;
+  }
+  .m.get { background: var(--get); } .m.post { background: var(--post); }
+  .m.put { background: var(--put); } .m.delete { background: var(--delete); }
+  .tag { font-size: 0.75rem; white-space: nowrap; }
+  .done { color: var(--get); } .wip { color: var(--put); } .plan { color: var(--muted); }
+  .auth-none { color: var(--muted); } .auth-user { color: var(--text); } .auth-admin { color: var(--accent); }
+  ol.flow { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+  ol.flow li { counter-increment: s; position: relative; padding: 0 0 10px 34px; }
+  ol.flow li::before {
+    content: counter(s); position: absolute; left: 0; top: 2px; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line);
+    font-size: 0.72rem; display: grid; place-items: center; color: var(--muted);
+  }
+  ul.road { list-style: none; padding: 0; margin: 12px 0 0; }
+  ul.road li {
+    display: grid; grid-template-columns: 28px 64px 1fr; gap: 8px; padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  ul.road li:last-child { border-bottom: none; }
+  ul.road .n { color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 0.82rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Wachari — архітектура бекенду</h1>
+  <p class="lead">Цільова схема <code>wachari-backend</code> (ASP.NET Core 9): з яких частин складається API, які дані зберігаються, які є ендпоінти і як проходять основні сценарії. Позначки «готово / в роботі / заплановано» відповідають крокам, які ми вже пройшли.</p>
+  <nav class="toc">
+    <a href="#overview">Загальна схема</a>
+    <a href="#layers">Шари і папки</a>
+    <a href="#data">Модель даних</a>
+    <a href="#endpoints">Ендпоінти</a>
+    <a href="#flows">Сценарії</a>
+    <a href="#conventions">Домовленості</a>
+    <a href="#roadmap">Порядок кроків</a>
+    <a href="#later">Відкладено</a>
+  </nav>
+</header>
+
+<!-- ============ OVERVIEW ============ -->
+<h2 id="overview">1. Загальна схема</h2>
+<p>Фронтенд звертається лише до нашого API. API — єдиний, хто працює з базою SQL Server і з TMDB. Постери браузер бере напряму з CDN TMDB, без участі бекенду.</p>
+
+<figure>
+<svg viewBox="0 0 1000 560" role="img" aria-label="Браузер надсилає запити з JWT до ASP.NET Core API; запит проходить middleware, контролери, сервіси; сервіси працюють з SQL Server через EF Core і з TMDB API через HttpClient; SSMS підключається до SQL Server для ручного перегляду даних; постери браузер бере напряму з CDN TMDB.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g font-family="Poppins, sans-serif" font-size="12" fill="currentColor">
+
+    <!-- Browser -->
+    <rect x="20" y="40" width="150" height="140" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <text x="95" y="80" text-anchor="middle" font-weight="600" font-size="13">Браузер</text>
+    <text x="95" y="102" text-anchor="middle" opacity="0.7">wachari-frontend</text>
+    <text x="95" y="122" text-anchor="middle" opacity="0.7">HTML · CSS · JS</text>
+    <text x="95" y="148" text-anchor="middle" opacity="0.7" font-size="11">JWT у пам'яті /</text>
+    <text x="95" y="164" text-anchor="middle" opacity="0.7" font-size="11">localStorage</text>
+
+    <!-- Browser <-> API -->
+    <line x1="170" y1="76" x2="318" y2="76" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="244" y="68" text-anchor="middle" font-size="11">запит + JWT</text>
+    <line x1="318" y1="100" x2="170" y2="100" stroke="currentColor" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+    <text x="244" y="118" text-anchor="middle" font-size="11" opacity="0.7">JSON (DTO)</text>
+
+    <!-- CDN -->
+    <rect x="20" y="450" width="150" height="70" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5" stroke-dasharray="4 3"/>
+    <text x="95" y="480" text-anchor="middle" font-weight="600">image.tmdb.org</text>
+    <text x="95" y="500" text-anchor="middle" opacity="0.7" font-size="11">CDN постерів</text>
+    <line x1="95" y1="180" x2="95" y2="448" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="104" y="320" font-size="11">&lt;img src&gt;</text>
+    <text x="104" y="336" font-size="11" opacity="0.7">повз бекенд</text>
+
+    <!-- API container -->
+    <rect x="300" y="20" width="460" height="390" rx="14" fill="none" stroke="#8b7ff6" stroke-width="1.6"/>
+    <text x="320" y="44" font-weight="700" font-size="13" fill="#8b7ff6">Wachari.Api · ASP.NET Core</text>
+
+    <!-- middleware -->
+    <rect x="320" y="58" width="420" height="56" rx="8" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.35"/>
+    <text x="530" y="80" text-anchor="middle" font-weight="600">Middleware pipeline</text>
+    <text x="530" y="100" text-anchor="middle" font-size="11" opacity="0.8">CORS → обробка помилок → Authentication (JWT) → Authorization</text>
+    <line x1="530" y1="114" x2="530" y2="136" stroke="currentColor" marker-end="url(#ar)"/>
+
+    <!-- controllers -->
+    <rect x="320" y="138" width="420" height="56" rx="8" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.35"/>
+    <text x="530" y="160" text-anchor="middle" font-weight="600">Controllers · валідація DTO</text>
+    <text x="530" y="180" text-anchor="middle" font-size="11" opacity="0.8">Auth · Media · Tmdb · Library</text>
+    <line x1="530" y1="194" x2="530" y2="216" stroke="currentColor" marker-end="url(#ar)"/>
+
+    <!-- services -->
+    <rect x="320" y="218" width="420" height="56" rx="8" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-opacity="0.35"/>
+    <text x="530" y="240" text-anchor="middle" font-weight="600">Services · бізнес-логіка (інтерфейси + DI)</text>
+    <text x="530" y="260" text-anchor="middle" font-size="11" opacity="0.8">Auth · Token · Media · Library</text>
+    <line x1="420" y1="274" x2="420" y2="300" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="640" y1="274" x2="640" y2="300" stroke="currentColor" marker-end="url(#ar)"/>
+
+    <!-- infra row -->
+    <rect x="320" y="302" width="200" height="84" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <text x="420" y="336" text-anchor="middle" font-weight="600">WachariDbContext</text>
+    <text x="420" y="356" text-anchor="middle" font-size="11" opacity="0.7">EF Core · міграції</text>
+
+    <rect x="540" y="302" width="200" height="84" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <text x="640" y="336" text-anchor="middle" font-weight="600">TmdbClient</text>
+    <text x="640" y="356" text-anchor="middle" font-size="11" opacity="0.7">HttpClient + IMemoryCache</text>
+
+    <!-- database -->
+    <line x1="420" y1="386" x2="420" y2="448" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="429" y="426" font-size="11">SQL (T-SQL)</text>
+    <rect x="320" y="450" width="200" height="80" rx="10" fill="none" stroke="#8b7ff6" stroke-width="1.6"/>
+    <text x="420" y="482" text-anchor="middle" font-weight="600">SQL Server</text>
+    <text x="420" y="502" text-anchor="middle" font-size="11" opacity="0.7">база Wachari · порт 1433</text>
+    <text x="420" y="518" text-anchor="middle" font-size="10.5" opacity="0.6">на Mac — у Docker</text>
+
+    <!-- SSMS -->
+    <rect x="600" y="450" width="160" height="80" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5" stroke-dasharray="4 3"/>
+    <text x="680" y="482" text-anchor="middle" font-weight="600">SSMS</text>
+    <text x="680" y="502" text-anchor="middle" font-size="11" opacity="0.7">Windows · або Rider</text>
+    <text x="680" y="518" text-anchor="middle" font-size="10.5" opacity="0.6">Database на Mac</text>
+    <line x1="600" y1="490" x2="522" y2="490" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="561" y="482" text-anchor="middle" font-size="11">запити</text>
+    <text x="561" y="508" text-anchor="middle" font-size="11" opacity="0.7">вручну</text>
+
+    <!-- TMDB -->
+    <line x1="740" y1="344" x2="818" y2="344" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="779" y="336" text-anchor="middle" font-size="11">HTTPS</text>
+    <text x="779" y="362" text-anchor="middle" font-size="11" opacity="0.7">+ API key</text>
+    <rect x="820" y="302" width="160" height="84" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5" stroke-dasharray="4 3"/>
+    <text x="900" y="336" text-anchor="middle" font-weight="600">TMDB API</text>
+    <text x="900" y="356" text-anchor="middle" font-size="11" opacity="0.7">api.themoviedb.org</text>
+  </g>
+</svg>
+<figcaption>Суцільна рамка — наш код і наша база; пунктирна — зовнішні сервіси та інструменти. SSMS не є частиною застосунку: це клієнт, яким ти вручну дивишся таблиці й виконуєш SQL-запити до тієї самої бази, з якою працює API. Python-сервіс рекомендацій (крок 12) підключиться до сервісного шару так само, як TmdbClient: окремий <code>RecommenderClient</code> на HttpClient, без доступу до бази.</figcaption>
+</figure>
+
+<!-- ============ LAYERS ============ -->
+<h2 id="layers">2. Шари і структура папок</h2>
+<p>Запит завжди йде згори вниз: контролер → сервіс → DbContext / клієнт. Шар бачить лише той, що під ним, тому контролер не пише SQL, а сервіс нічого не знає про HTTP-статуси.</p>
+
+<div class="grid-2" style="margin-top:12px">
+  <div class="card">
+    <h3>Хто за що відповідає</h3>
+    <ul>
+      <li><strong>Controllers</strong> — маршрути, приймають Request DTO, повертають статус-код і Response DTO. Логіки немає.</li>
+      <li><strong>Dtos</strong> — контракт API: що приходить (<code>…Request</code>) і що віддаємо (<code>…Response</code>). Сутності з бази назовні не виходять.</li>
+      <li><strong>Services</strong> — бізнес-правила: «не можна додати друга двічі», «переглянуте не рекомендуємо».</li>
+      <li><strong>Data</strong> — <code>WachariDbContext</code>, конфігурація таблиць, міграції, сідер.</li>
+      <li><strong>Models</strong> — сутності EF Core (таблиці).</li>
+      <li><strong>Integrations</strong> — клієнти зовнішніх API (TMDB, Python-сервіс) за інтерфейсами, щоб у тестах їх можна було підмінити.</li>
+      <li><strong>Middleware</strong> — глобальна обробка винятків → ProblemDetails.</li>
+    </ul>
+  </div>
+<pre><span class="c"># src/Wachari.Api/  +  recommender/ (Python) поруч у репозиторії</span>
+Controllers/
+  AuthController.cs
+  RecommendationsController.cs
+  MediaController.cs          <span class="c">← є</span>
+  TmdbController.cs
+  LibraryController.cs
+Dtos/                          <span class="c">← є (Request DTO)</span>
+  Auth/  Media/  Tmdb/  Library/  Recommendations/  Common/
+Services/
+  Interfaces/                  <span class="c">IMediaService, …</span>
+  MediaService.cs  AuthService.cs  TokenService.cs
+  LibraryService.cs  RecommendationService.cs
+Integrations/
+  Tmdb/         ITmdbClient, TmdbClient, TmdbOptions
+  Recommender/  IRecommenderClient, RecommenderClient
+Data/                          <span class="c">← є</span>
+  WachariDbContext.cs  DbSeeder.cs
+  Configurations/              <span class="c">IEntityTypeConfiguration&lt;T&gt;</span>
+Migrations/                    <span class="c">← є</span>
+Models/                        <span class="c">← є: MediaItem, Movie, TvShow</span>
+  User.cs  Genre.cs  UserMedia.cs
+Middleware/
+  ExceptionHandlingMiddleware.cs
+Program.cs</pre>
+</div>
+
+<!-- ============ DATA ============ -->
+<h2 id="data">3. Модель даних</h2>
+<p>П'ять таблиць у SQL Server. <code>MediaItems</code> лишається однією таблицею з дискримінатором <code>Type</code> (TPH), як зараз.</p>
+
+<figure>
+<svg viewBox="0 0 900 430" role="img" aria-label="ER-діаграма: Users 1:N UserMedia N:1 MediaItems; MediaItems N:M Genres через MediaItemGenres.">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g font-family="JetBrains Mono, monospace" font-size="11.5" fill="currentColor">
+
+    <!-- Users -->
+    <rect x="20" y="20" width="220" height="138" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <rect x="20" y="20" width="220" height="28" rx="8" fill="#8b7ff6" fill-opacity="0.25"/>
+    <text x="32" y="39" font-weight="600" font-family="Poppins, sans-serif" font-size="12.5">Users</text>
+    <text x="32" y="66">Id <tspan opacity="0.55">PK</tspan></text>
+    <text x="32" y="86">Email <tspan opacity="0.55">unique</tspan></text>
+    <text x="32" y="106">UserName <tspan opacity="0.55">unique</tspan></text>
+    <text x="32" y="126">PasswordHash · Role</text>
+    <text x="32" y="146" opacity="0.55">CreatedAt</text>
+
+    <!-- UserMedia -->
+    <rect x="330" y="20" width="220" height="138" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <rect x="330" y="20" width="220" height="28" rx="8" fill="#8b7ff6" fill-opacity="0.25"/>
+    <text x="342" y="39" font-weight="600" font-family="Poppins, sans-serif" font-size="12.5">UserMedia</text>
+    <text x="342" y="66">UserId <tspan opacity="0.55">PK, FK</tspan></text>
+    <text x="342" y="86">MediaItemId <tspan opacity="0.55">PK, FK</tspan></text>
+    <text x="342" y="106">Status <tspan opacity="0.55">Watched|Watchlist</tspan></text>
+    <text x="342" y="126">UserRating · IsLiked</text>
+    <text x="342" y="146" opacity="0.55">AddedAt</text>
+
+    <!-- MediaItems -->
+    <rect x="640" y="20" width="240" height="288" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <rect x="640" y="20" width="240" height="28" rx="8" fill="#8b7ff6" fill-opacity="0.25"/>
+    <text x="652" y="39" font-weight="600" font-family="Poppins, sans-serif" font-size="12.5">MediaItems <tspan font-weight="400" opacity="0.7">(TPH)</tspan></text>
+    <text x="652" y="66">Id <tspan opacity="0.55">PK</tspan></text>
+    <text x="652" y="86">Type <tspan opacity="0.55">movie|tvShow</tspan></text>
+    <text x="652" y="106">TmdbId <tspan opacity="0.55">unique з Type</tspan></text>
+    <text x="652" y="126">Title · Tagline</text>
+    <text x="652" y="146">Overview</text>
+    <text x="652" y="166">ReleaseDate · Rating</text>
+    <text x="652" y="186">PosterPath <tspan opacity="0.55">лише шлях</tspan></text>
+    <text x="652" y="206" opacity="0.55">UpdatedAt</text>
+    <line x1="652" y1="218" x2="868" y2="218" stroke="currentColor" stroke-opacity="0.25"/>
+    <text x="652" y="238">RuntimeMinutes <tspan opacity="0.55">movie</tspan></text>
+    <text x="652" y="258">NumberOfSeasons <tspan opacity="0.55">tvShow</tspan></text>
+    <text x="652" y="278">NumberOfEpisodes <tspan opacity="0.55">tvShow</tspan></text>
+    <text x="652" y="298" opacity="0.55" font-size="10.5">null, якщо поле іншого типу</text>
+
+    <!-- MediaItemGenres -->
+    <rect x="330" y="290" width="220" height="72" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <rect x="330" y="290" width="220" height="28" rx="8" fill="#8b7ff6" fill-opacity="0.25"/>
+    <text x="342" y="309" font-weight="600" font-family="Poppins, sans-serif" font-size="12.5">MediaItemGenres</text>
+    <text x="342" y="336">MediaItemId <tspan opacity="0.55">PK, FK</tspan></text>
+    <text x="342" y="354">GenreId <tspan opacity="0.55">PK, FK</tspan></text>
+
+    <!-- Genres -->
+    <rect x="640" y="330" width="240" height="88" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.5"/>
+    <rect x="640" y="330" width="240" height="28" rx="8" fill="#8b7ff6" fill-opacity="0.25"/>
+    <text x="652" y="349" font-weight="600" font-family="Poppins, sans-serif" font-size="12.5">Genres</text>
+    <text x="652" y="376">Id <tspan opacity="0.55">PK</tspan></text>
+    <text x="652" y="394">TmdbGenreId <tspan opacity="0.55">unique</tspan></text>
+    <text x="652" y="412">Name</text>
+
+    <!-- relations -->
+    <g font-family="Poppins, sans-serif" font-size="11">
+      <line x1="240" y1="84" x2="328" y2="84" stroke="currentColor" marker-end="url(#ar2)"/>
+      <text x="284" y="76" text-anchor="middle">1 : N</text>
+      <line x1="550" y1="84" x2="638" y2="84" stroke="currentColor" marker-end="url(#ar2)"/>
+      <text x="594" y="76" text-anchor="middle">N : 1</text>
+
+      <line x1="550" y1="310" x2="638" y2="280" stroke="currentColor" marker-end="url(#ar2)"/>
+      <text x="594" y="284" text-anchor="middle">N : 1</text>
+      <line x1="550" y1="350" x2="638" y2="372" stroke="currentColor" marker-end="url(#ar2)"/>
+      <text x="594" y="378" text-anchor="middle">N : 1</text>
+    </g>
+  </g>
+</svg>
+<figcaption><code>UserMedia</code> — таблиця зв'язку «користувач ↔ фільм» з власними полями (статус, оцінка). Складений ключ <code>(UserId, MediaItemId)</code> не дає додати один фільм двічі. <code>IsLiked = true</code> — фільм, який користувач позначив як улюблений; саме ці 10–15 фільмів беруться для рекомендацій.</figcaption>
+</figure>
+
+<div class="grid-2" style="margin-top:16px">
+  <div class="card">
+    <h3>Що зміниться в наявних моделях</h3>
+    <ul>
+      <li><code>PosterUrl</code> → <code>PosterPath</code>: зберігаємо лише шлях від TMDB, повна адреса збирається в Response DTO.</li>
+      <li>Додаються <code>TmdbId</code> і <code>UpdatedAt</code>, унікальний індекс на <code>(TmdbId, Type)</code>.</li>
+      <li><code>List&lt;string&gt; Genres</code> → окрема таблиця <code>Genres</code> зі зв'язком N:M, щоб фільтрувати й рахувати рекомендації за жанрами в SQL.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Чого навмисно немає</h3>
+    <ul>
+      <li>Картинок у базі: постери віддає CDN TMDB.</li>
+      <li>Друзів: відкладено (розділ 8). Результатів рекомендацій: вони рахуються на кожен запит.</li>
+      <li>Акторів, режисерів, трейлерів: за потреби беруться з TMDB на сторінці деталей.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ ENDPOINTS ============ -->
+<h2 id="endpoints">4. Ендпоінти</h2>
+<p>Базовий префікс <code>/api</code>. Доступ: <span class="auth-none">— відкритий</span>, <span class="auth-user">User</span> — потрібен JWT, <span class="auth-admin">Admin</span> — JWT з роллю Admin.</p>
+<div class="legend">
+  <span><span class="done">●</span> готово</span>
+  <span><span class="wip">●</span> в роботі</span>
+  <span><span class="plan">○</span> заплановано</span>
+</div>
+
+<h3>Auth — реєстрація і вхід</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Доступ</th><th>Що робить</th><th>Відповідь</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m post">POST</span></td><td class="path">/api/auth/register</td><td class="auth-none">—</td><td>Створює користувача, хешує пароль (BCrypt)</td><td>201 · 400 · 409 email зайнятий</td><td class="tag plan">○ крок 9</td></tr>
+    <tr><td><span class="m post">POST</span></td><td class="path">/api/auth/login</td><td class="auth-none">—</td><td>Перевіряє пароль, видає JWT</td><td>200 <code>{ token, expiresAt, user }</code> · 401</td><td class="tag plan">○ крок 9</td></tr>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/auth/me</td><td class="auth-user">User</td><td>Поточний користувач з токена</td><td>200 · 401</td><td class="tag plan">○ крок 9</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Media — каталог у нашій базі</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Доступ</th><th>Що робить</th><th>Відповідь</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/media?type=&amp;genre=&amp;page=</td><td class="auth-none">—</td><td>Список для каталогу (вкладки All / Movies / TV Shows)</td><td>200 сторінка з <code>items</code></td><td class="tag done">● крок 3 <span class="plan">(фільтр genre і пагінація — крок 8)</span></td></tr>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/media/{id}</td><td class="auth-none">—</td><td>Сторінка деталей</td><td>200 · 404</td><td class="tag done">● крок 3</td></tr>
+    <tr><td><span class="m post">POST</span></td><td class="path">/api/media/movies</td><td class="auth-admin">Admin</td><td>Створити фільм вручну</td><td>201 + Location · 400</td><td class="tag wip">● крок 4</td></tr>
+    <tr><td><span class="m post">POST</span></td><td class="path">/api/media/tv-shows</td><td class="auth-admin">Admin</td><td>Створити серіал вручну</td><td>201 + Location · 400</td><td class="tag wip">● крок 4</td></tr>
+    <tr><td><span class="m put">PUT</span></td><td class="path">/api/media/movies/{id}</td><td class="auth-admin">Admin</td><td>Замінити дані фільму</td><td>204 · 400 · 404</td><td class="tag wip">● крок 4</td></tr>
+    <tr><td><span class="m put">PUT</span></td><td class="path">/api/media/tv-shows/{id}</td><td class="auth-admin">Admin</td><td>Замінити дані серіалу</td><td>204 · 400 · 404</td><td class="tag wip">● крок 4</td></tr>
+    <tr><td><span class="m delete">DELETE</span></td><td class="path">/api/media/{id}</td><td class="auth-admin">Admin</td><td>Видалити запис</td><td>204 · 404</td><td class="tag wip">● крок 4</td></tr>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/genres</td><td class="auth-none">—</td><td>Список жанрів для фільтра</td><td>200</td><td class="tag plan">○ крок 8</td></tr>
+  </tbody>
+</table></div>
+<p style="margin-top:8px;color:var(--muted);font-size:0.85rem">Зараз POST/PUT/DELETE відкриті для всіх. Роль Admin додамо разом з авторизацією.</p>
+
+<h3>TMDB — пошук нових фільмів</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Доступ</th><th>Що робить</th><th>Відповідь</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/tmdb/search?query=&amp;type=&amp;page=</td><td class="auth-none">—</td><td>Пошук серед усіх фільмів світу через TMDB; результат кешується на 10 хв</td><td>200 · 400 порожній query · 502 TMDB недоступний</td><td class="tag plan">○ крок 8</td></tr>
+    <tr><td><span class="m post">POST</span></td><td class="path">/api/media/import</td><td class="auth-user">User</td><td>Тіло <code>{ tmdbId, type }</code>: знаходить запис у нашій базі або завантажує з TMDB і зберігає. Повторний виклик не створює дубліката</td><td>200 існуючий · 201 новий · 404 немає в TMDB</td><td class="tag plan">○ крок 8</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Library — моє переглянуте і «хочу подивитися»</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Доступ</th><th>Що робить</th><th>Відповідь</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/me/library?status=</td><td class="auth-user">User</td><td>Мої записи з фільтром Watched / Watchlist</td><td>200</td><td class="tag plan">○ крок 10</td></tr>
+    <tr><td><span class="m put">PUT</span></td><td class="path">/api/me/library/{mediaId}</td><td class="auth-user">User</td><td>Тіло <code>{ status, userRating, isLiked }</code>: додати або змінити (upsert)</td><td>200 · 400 · 404 немає такого media</td><td class="tag plan">○ крок 10</td></tr>
+    <tr><td><span class="m delete">DELETE</span></td><td class="path">/api/me/library/{mediaId}</td><td class="auth-user">User</td><td>Прибрати з бібліотеки</td><td>204 · 404</td><td class="tag plan">○ крок 10</td></tr>
+  </tbody>
+</table></div>
+<p style="margin-top:8px;color:var(--muted);font-size:0.85rem"><code>me</code> у шляху означає «користувач з JWT». Id користувача ніколи не береться з тіла запиту, тому чужу бібліотеку змінити неможливо.</p>
+
+<h3>Recommendations — проста версія</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Доступ</th><th>Що робить</th><th>Відповідь</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m put">PUT</span></td><td class="path">/api/me/liked</td><td class="auth-user">User</td><td>Онбординг: тіло <code>{ mediaIds: [...] }</code>, 10–15 фільмів. Замінює список улюблених (ставить <code>IsLiked</code> і статус Watched)</td><td>204 · 400 менше 10 або більше 15 · 404</td><td class="tag plan">○ крок 12</td></tr>
+    <tr><td><span class="m get">GET</span></td><td class="path">/api/recommendations?limit=20</td><td class="auth-user">User</td><td>Рекомендації без уже переглянутого</td><td>200 · 409 ще не обрано 10 улюблених · 503 Python недоступний</td><td class="tag plan">○ крок 12</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Python-сервіс (внутрішній, браузер його не бачить)</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Хто викликає</th><th>Вхід → вихід</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m post">POST</span></td><td class="path">/recommend</td><td>RecommenderClient</td><td><code>{ liked: [{ id, genres, overview }], candidates: [...], limit }</code> → <code>[{ mediaItemId, score }]</code></td><td class="tag plan">○ крок 12</td></tr>
+    <tr><td><span class="m get">GET</span></td><td class="path">/health</td><td>.NET</td><td>200, якщо сервіс живий</td><td class="tag plan">○ крок 12</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Contact</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Метод</th><th>Шлях</th><th>Доступ</th><th>Що робить</th><th>Відповідь</th><th>Стан</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m post">POST</span></td><td class="path">/api/contact</td><td class="auth-none">—</td><td>Повідомлення з форми contact.html, зберігається в окрему таблицю</td><td>201 · 400</td><td class="tag plan">○ опційно</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ============ FLOWS ============ -->
+<h2 id="flows">5. Основні сценарії</h2>
+<div class="grid-2">
+  <div class="card">
+    <h3>Вхід</h3>
+    <ol class="flow">
+      <li><code>POST /api/auth/login</code> з email і паролем.</li>
+      <li><code>AuthService</code> знаходить користувача, <code>BCrypt.Verify</code> порівнює пароль із хешем.</li>
+      <li><code>TokenService</code> підписує JWT: claims <code>sub</code> (Id), <code>name</code>, <code>role</code>, термін дії.</li>
+      <li>Фронтенд зберігає токен і додає до кожного запиту заголовок <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+      <li>Middleware перевіряє підпис і термін; у контролері Id береться з <code>User</code> (claims), а не з тіла запиту.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Знайти фільм і позначити переглянутим</h3>
+    <ol class="flow">
+      <li><code>GET /api/tmdb/search?query=nosferatu</code> → <code>TmdbClient</code> перевіряє кеш, інакше йде в TMDB.</li>
+      <li>Користувач обирає результат: <code>POST /api/media/import { tmdbId, type }</code>.</li>
+      <li><code>MediaService</code> шукає <code>(TmdbId, Type)</code> у базі; якщо немає, тягне деталі з TMDB, зберігає з жанрами і повертає наш <code>id</code>.</li>
+      <li><code>PUT /api/me/library/{id} { status: "Watched", userRating: 9 }</code>.</li>
+      <li>Далі каталог, деталі й рекомендації читають цей фільм з нашої бази.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Оновлення даних з TMDB</h3>
+    <ol class="flow">
+      <li>Фільм уже є в нашій базі, але рейтинг у TMDB змінюється з часом.</li>
+      <li>При <code>POST /api/media/import</code> для існуючого запису <code>MediaService</code> дивиться на <code>UpdatedAt</code>.</li>
+      <li>Якщо запис старший за 7 днів, бере свіжі деталі з TMDB і оновлює поля та жанри; інакше повертає як є.</li>
+      <li>Каталог і сторінка деталей завжди читають лише нашу базу, тому недоступність TMDB їх не ламає.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Рекомендації (проста версія)</h3>
+    <ol class="flow">
+      <li>Після реєстрації користувач шукає і обирає 10–15 улюблених фільмів → <code>PUT /api/me/liked</code>.</li>
+      <li><code>GET /api/recommendations</code>: <code>RecommendationService</code> бере з бази улюблені фільми і кандидатів — усі <code>MediaItems</code>, яких немає в бібліотеці користувача.</li>
+      <li>Щоб кандидатів було достатньо, .NET попередньо імпортує з TMDB популярні фільми трьох найчастіших жанрів серед улюблених (<code>/discover</code>).</li>
+      <li>Python будує профіль користувача і рахує <code>score</code> кожного кандидата (алгоритм нижче).</li>
+      <li>.NET ще раз відкидає переглянуте, підтягує дані з бази і повертає Response DTO за спаданням <code>score</code>.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Алгоритм у Python</h3>
+    <ol class="flow">
+      <li><strong>Жанри:</strong> вектор частот жанрів серед улюблених (наприклад, Crime 0.4, Drama 0.3…). Схожість кандидата — косинус між цим вектором і жанрами кандидата.</li>
+      <li><strong>Опис:</strong> TF-IDF по <code>overview</code> (scikit-learn), схожість кандидата — середній косинус до улюблених.</li>
+      <li><code>score = 0.6·жанри + 0.3·опис + 0.1·(Rating / 10)</code>.</li>
+      <li>Без навчання моделі і без власної бази — сервіс без стану, ~100 рядків коду.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Помилка в будь-якому місці</h3>
+    <ol class="flow">
+      <li>Валідація DTO не пройшла → <code>[ApiController]</code> сам повертає 400 з <code>errors</code>.</li>
+      <li>Сервіс кидає власний виняток (<code>NotFoundException</code>, <code>ConflictException</code>).</li>
+      <li><code>ExceptionHandlingMiddleware</code> перетворює його на 404 / 409 у форматі ProblemDetails.</li>
+      <li>Будь-який інший виняток → 500 без деталей стеку назовні; деталі пишуться в лог.</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ============ CONVENTIONS ============ -->
+<h2 id="conventions">6. Домовленості API</h2>
+<div class="grid-2">
+  <div class="card">
+    <h3>Статус-коди</h3>
+    <ul>
+      <li><strong>200</strong> дані · <strong>201</strong> створено + <code>Location</code> · <strong>204</strong> успіх без тіла</li>
+      <li><strong>400</strong> невалідний запит · <strong>401</strong> немає/прострочений токен · <strong>403</strong> токен є, прав немає</li>
+      <li><strong>404</strong> не знайдено · <strong>409</strong> конфлікт (дублікат)</li>
+      <li><strong>409</strong> також «ще не обрано 10 улюблених» · <strong>502</strong> помилка TMDB · <strong>503</strong> недоступний Python-сервіс</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Формати</h3>
+    <ul>
+      <li>JSON у camelCase, дати як <code>"1994-10-14"</code>.</li>
+      <li>Пагінація: <code>?page=1&amp;pageSize=20</code> → <code>{ items, page, pageSize, totalCount }</code>, <code>pageSize</code> не більше 50.</li>
+      <li>Помилки — стандартний ProblemDetails: <code>{ type, title, status, errors? }</code>.</li>
+      <li>Назовні лише Response DTO; постер — повна URL: <code>https://image.tmdb.org/t/p/w342{posterPath}</code>.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Конфігурація і секрети</h3>
+    <ul>
+      <li><code>appsettings.json</code>: <code>Jwt:Issuer</code>, <code>Jwt:Audience</code>, <code>Tmdb:BaseUrl</code>, <code>Recommender:BaseUrl</code>, дозволені CORS-origin.</li>
+      <li>User Secrets (не в Git): <code>ConnectionStrings:DefaultConnection</code> (у ньому пароль SQL Server), <code>Jwt:Key</code>, <code>Tmdb:ApiKey</code>.</li>
+      <li>Налаштування читаються через Options-класи (<code>TmdbOptions</code>, <code>JwtOptions</code>).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Документація і тести</h3>
+    <ul>
+      <li>OpenAPI (<code>/openapi/v1.json</code>) + Scalar або Swagger UI в Development.</li>
+      <li><code>Wachari.Api.http</code> — ручні запити з Rider.</li>
+      <li>Пізніше: проєкт <code>tests/Wachari.Api.Tests</code> (xUnit) для сервісів з підміненими <code>ITmdbClient</code> і <code>IRecommenderClient</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<h3 style="margin-top:32px">База даних: SQL Server і SSMS</h3>
+<div class="grid-2">
+  <div class="card">
+    <h3>Як це запускається</h3>
+    <ul>
+      <li><strong>Windows:</strong> SQL Server Developer Edition (безкоштовний) + SSMS. Рядок підключення: <code>Server=localhost;Database=Wachari;Trusted_Connection=True;TrustServerCertificate=True</code>.</li>
+      <li><strong>MacBook:</strong> SQL Server не встановлюється напряму і SSMS під macOS немає. SQL Server запускається в Docker-контейнері, а таблиці переглядаються через вкладку <strong>Database</strong> у Rider. Рядок підключення: <code>Server=localhost,1433;Database=Wachari;User Id=sa;Password=…;TrustServerCertificate=True</code>.</li>
+      <li>Код застосунку на обох комп'ютерах однаковий, відрізняється лише рядок підключення в User Secrets.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Що зміниться в проєкті</h3>
+    <ul>
+      <li>Пакет <code>Microsoft.EntityFrameworkCore.Sqlite</code> → <code>Microsoft.EntityFrameworkCore.SqlServer</code>, у <code>Program.cs</code> <code>UseSqlite</code> → <code>UseSqlServer</code>.</li>
+      <li>Наявні міграції згенеровані під SQLite (типи <code>TEXT</code>, <code>INTEGER</code>), тому папку <code>Migrations/</code> видаляємо і створюємо нову <code>InitialCreate</code> під SQL Server.</li>
+      <li>Тестові дані знову заповнить <code>DbSeeder</code>; <code>wachari.db</code> більше не потрібен.</li>
+      <li>Для <code>Rating</code> задаємо точний тип <code>decimal(3,1)</code>, для рядків — максимальну довжину, щоб не було <code>nvarchar(max)</code> всюди.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ ROADMAP ============ -->
+<h2 id="roadmap">7. Порядок кроків</h2>
+<p>Кожен крок — окрема гілка, злиття в <code>main</code> і робочий API після нього.</p>
+<ul class="road">
+  <li><span class="n">1</span><span class="tag done">● готово</span><span>Репозиторій, solution, порожній Web API</span></li>
+  <li><span class="n">2</span><span class="tag done">● готово</span><span>Моделі <code>MediaItem → Movie / TvShow</code>, <code>MediaController</code></span></li>
+  <li><span class="n">3</span><span class="tag done">● готово</span><span>EF Core + SQLite, TPH, міграції, сідер</span></li>
+  <li><span class="n">4</span><span class="tag wip">● в роботі</span><span>CRUD + Request DTO з валідацією</span></li>
+  <li><span class="n">5</span><span class="tag plan">○</span><span>Перехід на SQL Server (Docker на Mac), нова міграція, підключення SSMS / Rider Database</span></li>
+  <li><span class="n">6</span><span class="tag plan">○</span><span>Сервісний шар (<code>IMediaService</code>), Response DTO, тонкий контролер</span></li>
+  <li><span class="n">7</span><span class="tag plan">○</span><span>Глобальна обробка помилок (ProblemDetails), Scalar/Swagger UI</span></li>
+  <li><span class="n">8</span><span class="tag plan">○</span><span>TMDB: <code>TmdbClient</code>, пошук з кешем, імпорт, таблиця <code>Genres</code>, пагінація</span></li>
+  <li><span class="n">9</span><span class="tag plan">○</span><span><code>User</code>, реєстрація/вхід, JWT, ролі User/Admin</span></li>
+  <li><span class="n">10</span><span class="tag plan">○</span><span>Бібліотека користувача (<code>UserMedia</code>)</span></li>
+  <li><span class="n">11</span><span class="tag plan">○</span><span>CORS і підключення <code>wachari-frontend</code> (fetch замість статичних даних)</span></li>
+  <li><span class="n">12</span><span class="tag plan">○</span><span>Проста версія рекомендацій: онбординг 10–15 улюблених, Python-сервіс (FastAPI + scikit-learn), <code>RecommenderClient</code></span></li>
+</ul>
+
+<h2 id="later">8. Відкладено</h2>
+<div class="grid-2">
+  <div class="card">
+    <h3>Друзі</h3>
+    <p>Таблиця <code>Friendships</code> (Requester, Addressee, Status Pending/Accepted), заявки в друзі, пошук користувачів, перегляд бібліотеки друга. Тоді в Python-сервіс додасться ще один вхід — улюблене друзів з меншою вагою.</p>
+  </div>
+  <div class="card">
+    <h3>Розумніші рекомендації</h3>
+    <p>Колаборативна фільтрація («кому сподобалось те саме, сподобалось ще…»), врахування оцінок 1–10 замість лише «подобається», кешування результатів. Має сенс, коли буде багато користувачів.</p>
+  </div>
+</div>
+
+</main>
+</body>
+</html>
